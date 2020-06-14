@@ -1,0 +1,110 @@
+import numpy
+from scipy.integrate import odeint
+import matplotlib.pyplot as plt
+
+#Find whole paper at: https://www.sciencedirect.com/science/article/pii/S1369703X16301152#bib0065
+
+#Reaction rate constants (Check paper for units)
+k_1 = 1e5
+k_1f = 5e8
+k_1r = 5e3
+k_eq2a = 68
+k_eq2af = 1e8
+k_eq2ar = 1.471
+k_2b = 47e-3
+k_eq2c = 3e6
+k_eq2cf = 1e8
+k_eq2cr = 331
+k_2d = 4.6e-3
+KM_3a = 20.35e-6
+k_3f = 1e8
+k_3r = 59.37
+k_4acat = 4.22
+k_4bcat = 8.32
+k_5f = 1.2e7
+k_5r = 0.06
+k_6f = 87
+k_7 = 4.1
+k_8 = 1.13
+
+m = 4 #Number of gp32 binding sites on a primer
+n = 8 #Number of reocmbinase binding sites on a primer
+np = 32 #Number of base pairs in primer
+B = 116 #Number of base pairs in template DNA
+
+G = 9.4e-7 #Concentration of gp32 protein [M]
+F = 4.8e-7 #Forward primer concentration [M]
+
+#Initial concentrations for reactants [M]
+R0 = 5.9e-6
+FG0 = 0
+FGR_prime0 = 0
+FGR0 = 0
+FGnR_prime0 = 0
+FnR0 = 0
+FnRD0 = 0
+D0 = 0.1 #Concentration in ng/uL specified on the paper
+FD0 = 0
+P0 = 1.34e-6
+PFD0 = 0
+dNTPs0 = 2e-4
+PPi0 = 0
+
+y0 = [R0,FG0,FGR_prime0,FGR0,FGnR_prime0,FnR0,FnRD0,D0,FD0,P0,PFD0,dNTPs0,PPi0] #Initial conditions array
+
+t = numpy.linspace(0,1200,1000000) #Time array
+
+def model(y,t):
+    
+    R = y[0]
+    FG = y[1]
+    FGR_prime = y[2]
+    FGR = y[3]
+    FGnR_prime = y[4]
+    FnR = y[5]
+    FnRD = y[6]
+    D = y[7]
+    FD = y[8]
+    P = y[9]
+    PFD = y[10]
+    dNTPs = y[11]
+    PPi = y[12]
+    
+    dRdt = - 2 * k_eq2af * R * n * FG + 2 * k_eq2ar * FGR_prime - 2 * k_eq2cf * R * FGR_prime + 2 * k_eq2cr * FGnR_prime + 2 * k_4acat * FnRD + 2 * k_4bcat * FnRD
+    
+    dFGdt = (1 / m) * k_1f * G * F - (1 / m) * k_1r * FG - k_eq2af * R * n * FG + (1 / n) * k_eq2ar * FGR_prime
+    
+    dFGR_primedt = k_eq2af * R * (n * FG) - (1 / n) * k_eq2ar * FGR_prime - k_2b * FGR_prime
+    
+    dFGRdt = k_2b * FGR_prime - (1 / (n-1)) * k_eq2cf * R * FGR + (1 / (n-1)) * k_eq2cr * FGnR_prime
+    
+    dFGnR_primedt = (1 / (n-1)) * k_eq2cf * R * FGR - (1 / (n-1)) * k_eq2cr * FGnR_prime - k_2d * FGnR_prime
+    
+    dFnRdt = k_2d * FGnR_prime + (1 / n) * k_3r * FnRD - (1 / n) * k_3f * FnR * D
+    
+    dFnRDdt = (1 / n) * k_3f * FnR * D - (1 / n) * k_3r * FnRD - (1 / n) * k_4acat * FnRD - (1 / n) * k_4bcat * FnRD
+    
+    dDdt = - (1 / n) + k_3f * FnR * D + (1 / n) * k_3r * FnRD + 2 * k_6f * PFD + 2 * k_7 * PPi * FD - 2 * k_8 * PPi * D
+    
+    dFDdt = (1 / n) * k_4acat * FnRD + (1 / n) * k_4bcat * FnRD - k_5f * P * FD + k_5r * PFD - k_7 * PPi * FD + k_8 * PPi * D
+    
+    dPdt = - k_5f * P * FD + k_5r * PFD + k_6f * PFD
+    
+    dPFDdt = k_5f * P * FD - k_5r * PFD - k_6f * PFD
+    
+    ddNTPsdt = - 2 * B * k_6f * PFD + 2 * B * k_8 * PPi * D + 2 * np * k_7 * PPi * FD
+    
+    dPPidt = 2 * k_4acat * FnRD + 2 * B * k_6f * PFD - 2 * B * k_8 * PPi * D - 2 * np * k_7 * PPi * FD
+    
+    return [dRdt, dFGdt, dFGR_primedt, dFGRdt, dFGnR_primedt, dFnRdt, dFnRDdt, dDdt, dFDdt, dPdt, dPFDdt, ddNTPsdt, dPPidt]
+
+soln = odeint(model,y0,t) #Solves differential equations using Euler method
+
+DNA = soln[:,7]
+
+#Plots DNA concentration over time
+plt.figure(1)
+plt.plot(t,DNA)
+plt.xlabel('Time (s)')
+plt.ylabel('DNA Concentration [M]')
+plt.title('DNA Concentration vs time')
