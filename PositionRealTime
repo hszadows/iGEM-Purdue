@@ -1,0 +1,96 @@
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d
+from itertools import product
+from scipy.integrate import simps
+from matplotlib import cm
+
+# Constants assumming water
+poi = 1 # Poise mPa * s
+p = 1 # density g/cm^3
+
+# Dimensions of the channel
+W = 700 # width in um
+H = 500 # height in um
+
+n1 = 100 #Grid size
+
+# Dumb arrays that need to be initilized
+y = np.linspace(0, W, n1) # The dumb y coordinate array
+z = np.linspace(0, H, n1) # The dumb z coordinate array
+
+delta_P = -2 #Change in pressure [mbar]
+delta_L = 20 #Change in length [mm]
+delta_T = 1e-5 #Time step [s]
+
+y, z = np.meshgrid(y, z) # Idk some fancy to to mesh them together??? who knows
+
+vx = np.zeros((n1, n1, 11, 11)) # Initializing array for vx
+
+perm = list(product(range(11),repeat=2)) #11x11 matrix of terms to add up
+
+const = -(16 / (poi * math.pi**2)) * (delta_P / delta_L) #Constant term (Depends only on constants input by the user)
+
+#Time Independent part of the equation, only needs to calculate it once
+def TimeInd():
+    for y1 in range(n1):
+        for z1 in range(n1):
+            temp = np.zeros((11,11))
+            
+            for n in perm:
+                temp[n] = 0.1 * math.sin((2 * n[0] + 1) * math.pi * (y[y1][y1] / W)) * math.sin((2 * n[1] + 1) * math.pi * (z[z1][z1] / H)) * \
+                        (((2 * n[0] + 1) * (2 * n[1] + 1) * (((((2 * n[0] + 1) * math.pi) / W)**2) + ((((2 * n[1] + 1) * math.pi) / H)**2))) ** -1)
+                
+            vx[y1][z1] = const * temp # Assigns value in vx array
+    return vx;
+
+#Time dependent part of the equation, needs to be updated every time point
+def TimeDepend(t):
+    upd = 1 - np.exp(part * t)
+    return upd;
+
+part2 = np.zeros((11,11))
+
+#Summation of parts in the time independent part so it doesn't need to calculate it more than once (Might be overcomplicating it idk)
+def Expn():
+    for k in perm:
+        part2[k] = -(((((2 * k[0] + 1) * math.pi) / W)**2) + ((((2 * k[1] + 1) * math.pi) / H)**2)) * (poi / p)
+    return part2;
+
+part = Expn()
+
+independ = TimeInd()
+
+newArr = np.zeros((n1,n1))
+distTravel = np.zeros((n1,n1))
+
+timePoints = 1001 #Number of time points to model
+
+
+distLapse = np.zeros((timePoints,n1,n1)) #Array holding distance travelled at every time point
+velLapse = np.zeros((timePoints,n1,n1)) #Array holding velocity at every time point
+
+#Just creates the figure
+fig1 = plt.figure(figsize=(14,10))
+ax = plt.axes(projection = "3d")
+    
+for x in range(timePoints):
+    for k in range(n1): #y loop
+        for l in range(n1): #z loop
+            newArr[k][l] = sum(sum(independ[k][l] * TimeDepend(x*10))) #New array calculates velocity at every point on the grid
+    
+    print("Volumetric flow rate at ", x ,"us is ", flowRate, "mm^3/s")
+    
+    velLapse[x] = newArr #Saves new velocity
+    distTravel += newArr * delta_T #Updates distance velocity
+    distLapse[x] = distTravel #Saves new distance
+    timepoint = x * delta_T * 1e6 #Time point currently being evaluated (in us)
+    ax.cla() #Clear axis
+    #Plots everything
+    ax.set_title("Fluids position at %0.2f us" % timepoint)
+    ax.set_xlabel("Width [um]")
+    ax.set_zlabel("Height [um]")
+    ax.set_ylabel("Position across the tube [mm]")
+    ax.plot_surface(y, distLapse[x],z)
+    plt.pause(1) #Wait a second before moving to the new plot, can adjust it if you'd like to wait longer
