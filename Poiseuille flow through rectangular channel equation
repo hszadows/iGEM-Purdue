@@ -1,0 +1,62 @@
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Constants assumming water
+poi = 1 # Poise mPa * s
+p = 1 # density g/cm^3
+
+# Dimensions of the dumb thing
+W = 700 # width in um   .5mm
+H = 500 # height in um  .7mm
+
+# Dumb arrays that need to be initilized
+z = np.linspace(0, 700, 100) # Width axis array
+y = np.linspace(0, 700, 100) # Height axis array
+
+# Chnage of pressure and length thingys that I have no clue what these are
+delta_P = -20  #change in pressure in
+delta_L = 22 # length of path on microfluidic device in mm
+
+time = 10000 # time of the liquid in us (micro seconds)
+
+y, z = np.meshgrid(y, z) # mesh y and z values
+
+vx = np.zeros((len(y), len(z))) # Initializing another array for vx
+
+# Here is where things get tricky. So for some reason I can't get the for loop
+# to match with the array list thingy we need to manually do the start and the
+# stop values which should be the same as the z and y start and stops as
+# previously defined. Also the increment should be 1 to match the vx array
+# dimensions. Basically these values correspond to the y and z arrays but I
+# couldn't do it with the actual arrays for some reason.
+# the two summation series
+for y1 in range(0, 700, 7):
+    for z1 in range(0, 700, 7):
+        temp = 0
+
+        # This calculates the value given the equation from paper.
+        # n and m variables are summation
+        # I only went from 0 - 10 assumming they get infitiely small when values
+        # get larger.
+        for n in range(0, 10, 1):
+            for m in range(0, 10, 1):
+                temp += -(16 / (poi * math.pi**2)) * (delta_P / delta_L) * \
+                (1 - math.exp(-(((((2 * n + 1) * math.pi) / W)**2) + ((((2 * m + 1) * math.pi) / H)**2)) * ((poi / p) * time))) * \
+                math.sin((2 * n + 1) * math.pi * (y1 / W)) * math.sin((2 * m + 1) * math.pi * (z1 / H)) * \
+                (((2 * n + 1) * (2 * m + 1) * (((((2 * n + 1) * math.pi) / W)**2) + ((((2 * m + 1) * math.pi) / H)**2))) ** -1)
+
+        vx[int(y1/7), int(z1/7)] = temp # Assigns value in vx array
+
+# I recommend making it the interactive chart which you can
+# do by going to Tools > Preferances > iPython cousol > Graphics > and changing
+# Graphics Backend from Inline to Automatic. You then have to restart spyder
+fig = plt.figure()
+ax = plt.axes(projection = "3d")
+
+ax.plot_surface(y, z, vx, cmap="plasma")
+ax.set_xlabel("Height (um)", labelpad=15)
+ax.set_ylabel("Width (um)", labelpad=15)
+ax.set_zlabel("Velocity of Fluid in the x direction (mm/s)", labelpad=15)
+
+plt.show()
