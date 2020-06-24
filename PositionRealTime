@@ -26,6 +26,8 @@ delta_T = 1e-5 #Time step [s]
 
 y, z = np.meshgrid(y, z) # Idk some fancy to to mesh them together??? who knows
 
+recSize = (y[1,1] - y[0,0]) * (z[1,1] - z[0,0]) * 1e-6 #Size of rectangle in mm^2
+
 vx = np.zeros((n1, n1, 11, 11)) # Initializing array for vx
 
 perm = list(product(range(11),repeat=2)) #11x11 matrix of terms to add up
@@ -74,18 +76,19 @@ velLapse = np.zeros((timePoints,n1,n1)) #Array holding velocity at every time po
 #Just creates the figure
 fig1 = plt.figure(figsize=(14,10))
 ax = plt.axes(projection = "3d")
-    
+
 for x in range(timePoints):
+    flowRate = 0
     for k in range(n1): #y loop
         for l in range(n1): #z loop
             newArr[k][l] = sum(sum(independ[k][l] * TimeDepend(x*10))) #New array calculates velocity at every point on the grid
     
-    print("Volumetric flow rate at ", x ,"us is ", flowRate, "mm^3/s")
-    
+    timepoint = x * delta_T * 1e6 #Time point currently being evaluated (in us)
+    flowRate = sum(sum(newArr * recSize)) #Calculates flow rate multiplying rectangle by rectangle size
+    print("Flow rate at ", round(timepoint,2),"us is ",round(flowRate,2),"[mm^3/s]")
     velLapse[x] = newArr #Saves new velocity
     distTravel += newArr * delta_T #Updates distance velocity
     distLapse[x] = distTravel #Saves new distance
-    timepoint = x * delta_T * 1e6 #Time point currently being evaluated (in us)
     ax.cla() #Clear axis
     #Plots everything
     ax.set_title("Fluids position at %0.2f us" % timepoint)
