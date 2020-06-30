@@ -26,6 +26,10 @@
 # the command "pip install selenium". If this doesn't work and you have 
 # Anaconda (Spyder), you could try "conda install selenium". 
 
+# Hey uh also go download the most recent stable Chrome webdriver and put it
+# in your python path. Look up "chrome webdriver" and it should be among the
+# top 3 results.
+
 import selenium # webdriver package to access primer3, quickfold, & other sites
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
