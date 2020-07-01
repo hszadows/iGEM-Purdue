@@ -38,18 +38,15 @@ n1 = 100 #Grid size
 delta_P = -20  #change in pressure in (please put units here if you know)
 delta_L = 22 # length of path on microfluidic device in mm
 
-# Arrays that need to be initilized
-z = np.linspace(0, W, n1) # Width axis array
-y = np.linspace(0, H, n1) # Height axis array
-
 # Go to end of code to call functions
 
 # Pouiselle Flow
 def PFlow():
     time = 10000 # time of the liquid in us (micro seconds)
     
-    # This allows us to meshgrid the y and z arrays outside of the function
-    global y, z
+    # Arrays that need to be initilized
+    z = np.linspace(0, W, n1) # Width axis array
+    y = np.linspace(0, H, n1) # Height axis array
     
     y, z = np.meshgrid(y, z) # mesh y and z values
 
@@ -174,8 +171,9 @@ def PosRealTime():
 
     delta_T = 1e-5 #Time step [s]
 
-    # This allows us to meshgrid the y and z arrays outside of the function
-    global y, z
+    # Arrays that need to be initilized
+    z = np.linspace(0, W, n1) # Width axis array
+    y = np.linspace(0, H, n1) # Height axis array
     
     y, z = np.meshgrid(y, z) # Idk some fancy to to mesh them together??? who knows
 
@@ -246,12 +244,96 @@ def PosRealTime():
         ax.plot_surface(y, distLapse[x],z)
         plt.pause(1) #Wait a second before moving to the new plot, can adjust it if you'd like to wait longer
 
+# Real Time Velocity
+        
+def VelRealTime():
+
+    delta_T = 1e-5 #Time step [s]
+
+    # Arrays that need to be initilized
+    z = np.linspace(0, W, n1) # Width axis array
+    y = np.linspace(0, H, n1) # Height axis array
+    
+    y, z = np.meshgrid(y, z) # Idk some fancy to to mesh them together??? who knows
+
+    vx = np.zeros((n1, n1, 11, 11)) # Reinitializing array for vx as a 4D array
+
+    perm = list(product(range(11),repeat=2)) #11x11 matrix of terms to add up
+
+    const = -(16 / (poi * math.pi**2)) * (delta_P / delta_L) #Constant term (Depends only on constants input by the user)
+
+    #Time Independent part of the equation, only needs to calculate it once
+    def TimeInd():
+        for y1 in range(n1):
+            for z1 in range(n1):
+                temp = np.zeros((11,11))
+            
+                for n in perm:
+                    temp[n] = 0.1 * math.sin((2 * n[0] + 1) * math.pi * (y[y1][y1] / W)) * math.sin((2 * n[1] + 1) * math.pi * (z[z1][z1] / H)) * \
+                            (((2 * n[0] + 1) * (2 * n[1] + 1) * (((((2 * n[0] + 1) * math.pi) / W)**2) + ((((2 * n[1] + 1) * math.pi) / H)**2))) ** -1)
+                
+                vx[y1][z1] = const * temp # Assigns value in vx array
+        return vx;
+
+    #Time dependent part of the equation, needs to be updated every time point
+    def TimeDepend(t):
+        upd = 1 - np.exp(part * t)
+        return upd;
+
+    part2 = np.zeros((11,11))
+
+    #Summation of parts in the time independent part so it doesn't need to calculate it more than once (Might be overcomplicating it idk)
+    def Expn():
+        for k in perm:
+            part2[k] = -(((((2 * k[0] + 1) * math.pi) / W)**2) + ((((2 * k[1] + 1) * math.pi) / H)**2)) * (poi / p)
+        return part2;
+
+    part = Expn()
+
+    independ = TimeInd()
+
+    newArr = np.zeros((n1,n1))
+    distTravel = np.zeros((n1,n1))
+
+    timePoints = 1001 #Number of time points to model
+
+
+    distLapse = np.zeros((timePoints,n1,n1)) #Array holding distance travelled at every time point
+    velLapse = np.zeros((timePoints,n1,n1)) #Array holding velocity at every time point
+
+    #Just creates the figure
+    fig1 = plt.figure(figsize=(14,10))
+    ax = plt.axes(projection = "3d")
+    
+    for x in range(timePoints):
+        for k in range(n1): #y loop
+            for l in range(n1): #z loop
+                newArr[k][l] = sum(sum(independ[k][l] * TimeDepend(x*10))) #New array calculates velocity at every point on the grid
+        
+        velLapse[x] = newArr #Saves new velocity
+        distTravel += newArr * delta_T #Updates distance velocity
+        distLapse[x] = distTravel #Saves new distance
+        timepoint = x * delta_T * 1e6 #Time point currently being evaluated (in us)
+        ax.cla() #Clear axis
+        #Plots everything
+        ax.set_title("Fluid velocity at %0.2f us" % timepoint)
+        ax.set_xlabel("Width [um]")
+        ax.set_zlabel("Height [um]")
+        ax.set_ylabel("Velocity across the tube [mm/s]")
+        ax.plot_surface(y, velLapse[x],z)
+        plt.pause(1) #Wait a second before moving to the new plot, can adjust it if you'd like to wait longer
+
 
 # RPA model (I'll add RT to this eventually). Also need to find new constants :(
         
 def RPA():
     
     #Find whole paper at: https://www.sciencedirect.com/science/article/pii/S1369703X16301152#bib0065
+    
+    # Sources of experimental data to potentially try (will do this when I'm not big depresso):
+    # https://www.sciencedirect.com/science/article/pii/S095869461930216X
+    # https://link.springer.com/article/10.1007/s12161-017-0820-7
+    # https://link.springer.com/article/10.1007/s00604-017-2144-0
 
     #Reaction rate constants (Check paper for units)
     k_1 = 1e5
@@ -277,27 +359,27 @@ def RPA():
     k_8 = 1.13
 
     m = 4 #Number of gp32 binding sites on a primer
-    n = 8 #Number of reocmbinase binding sites on a primer
-    np = 32 #Number of base pairs in primer
+    n = 8 #Number of recombinase binding sites on a primer
+    bp = 32 #Number of base pairs in primer
     B = 116 #Number of base pairs in template DNA
 
     G = 9.4e-7 #Concentration of gp32 protein [M]
     F = 4.8e-7 #Forward primer concentration [M]
 
     #Initial concentrations for reactants [M]
-    R0 = 5.9e-6
-    FG0 = 0
-    FGR_prime0 = 0
-    FGR0 = 0
-    FGnR_prime0 = 0
-    FnR0 = 0
-    FnRD0 = 0
+    R0 = 5.9e-6 # Recombinase complex
+    FG0 = 0 # Forward primer/Gp32 complex
+    FGR_prime0 = 0 # Forward primer/Gp32 complex intermediate
+    FGR0 = 0 # Stable forward primer/Gp32 complex
+    FGnR_prime0 = 0 # Forward primer/Gp32 complex w/ n recombinase molecules
+    FnR0 = 0 # Forward primer complexed with stable filament of n recombinase molecules
+    FnRD0 = 0 # Forward primer complexed with unstable filament of n recombinase molecules and DNA
     D0 = 0.1 #Concentration in ng/uL specified on the paper
-    FD0 = 0
-    P0 = 1.34e-6
-    PFD0 = 0
-    dNTPs0 = 2e-4
-    PPi0 = 0
+    FD0 = 0 # Forward primer/DNA complex
+    P0 = 1.34e-6 # Polymerase
+    PFD0 = 0 # Polymerase/forward primer/DNA complex
+    dNTPs0 = 2e-4 # Deoxynucleotide triphosphate
+    PPi0 = 0 # Inorganic phosphate
 
     y0 = [R0,FG0,FGR_prime0,FGR0,FGnR_prime0,FnR0,FnRD0,D0,FD0,P0,PFD0,dNTPs0,PPi0] #Initial conditions array
 
@@ -341,9 +423,9 @@ def RPA():
     
         dPFDdt = k_5f * P * FD - k_5r * PFD - k_6f * PFD
         
-        ddNTPsdt = - 2 * B * k_6f * PFD + 2 * B * k_8 * PPi * D + 2 * np * k_7 * PPi * FD
+        ddNTPsdt = - 2 * B * k_6f * PFD + 2 * B * k_8 * PPi * D + 2 * bp * k_7 * PPi * FD
     
-        dPPidt = 2 * k_4acat * FnRD + 2 * B * k_6f * PFD - 2 * B * k_8 * PPi * D - 2 * np * k_7 * PPi * FD
+        dPPidt = 2 * k_4acat * FnRD + 2 * B * k_6f * PFD - 2 * B * k_8 * PPi * D - 2 * bp * k_7 * PPi * FD
     
         return [dRdt, dFGdt, dFGR_primedt, dFGRdt, dFGnR_primedt, dFnRdt, dFnRDdt, dDdt, dFDdt, dPdt, dPFDdt, ddNTPsdt, dPPidt]
 
