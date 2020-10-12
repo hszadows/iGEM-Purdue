@@ -18,10 +18,15 @@
 # Code description: Input a genome, find optimal TtAgo guides, and for each #
 #   Argonaute guide find the optimal primers for Recombinase Polymerase     #
 #   Amplification (RPA) and optimal molecular beacons.                      #                
-# Currently relies on user selection of a guide in the Executables section, #
-#   followed by manual primer analysis in IDT's OligoAnalyzer. Manual       #
-#   analysis of beacons on Quickfold server is also highly recommended.     #
+# Currently relies on user selection of an Argonaute guide complex in the   #
+#   Executables section, followed by manual primer analysis in IDT's        #
+#   OligoAnalyzer. Manual analysis of beacons on the Quickfold server is    #
+#   also highly recommended.                                                #
 #############################################################################
+
+# Please read Sections 3 and 5 if you are unfamiliar with this code.
+# Please also draw out all reactions and understand the polarity and function
+#    of each part before ordering any sequences.
 
 ##############################
 # SECTION 1: PACKAGE IMPORTS #
@@ -101,7 +106,7 @@ optPrimerGC = 50
 minPrimerTM = 50
 maxPrimerTM = 100
 optPrimerTM = 75
-prodRange = "100-200" # I don't know what the product range is or means. 
+prodRange = "100-200" # I don't quite know what the product range is or means. 
 maxRepeat = 5 # Maximum tolerated mononucleotide repeat (inclusive?)
 
 beaconNa = 0.015 # Hailey thinks 0.01
@@ -510,6 +515,6 @@ try:
     if goodBeaconIndices[0] == goodBeaconIndices[1]:
         print("\nNo good beacons found.")
     else:
-        outputBeaconResults(bestSequences,beaconResultsFileName,5,probeSequence)
+        outputBeaconResults(bestSequences,beaconResultsFileName,5,probeSequence) 
 except:
     print("No good beacons found for that probe. Sorry.") # If you get this output you cannot use the Argonaute / RPA target you selected. Re-run. 
