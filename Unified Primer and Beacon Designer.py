@@ -7,6 +7,7 @@
 #     selenium 3.141.0                                                       #
 #     time, any version                                                      #
 #     numpy, any version                                                     #
+#     itertools, any version                                                 #
 #     ChromeDriver: the latest stable version                                #
 ##############################################################################
 
@@ -36,6 +37,7 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import time
 import numpy as np
+from itertools import product
 
 ###############################
 # SECTION 2: CLASS DEFINITION #
@@ -294,43 +296,18 @@ def findPrimers(targetList, outFileName = "NONE", inFileName = "NONE"):
 # Function returns an array of all possible stems according to guidelines in
 # "Molecular Beacon Sequence Design Algorithm", BioTechniques 34:68-73 (Jan. 2003)
 def createStems(stemLength):
-    arrayOfStems = []
-    for letter1 in ['A','T','C','G']: 
-        for letter2 in ['A','T','C','G']:
-            for letter3 in ['A','T','C','G']:
-                for letter4 in ['A','T','C','G']:
-                    if stemLength > 4: 
-                        for letter5 in ['A','T','C','G']: 
-                            if stemLength > 5:
-                                for letter6 in ['A','T','C','G']:
-                                    if stemLength > 6: # 7 bp stem
-                                        for letter7 in ['A','T','C','G']:    
-                                            gcRatio = (int((letter1=='C' or letter1=='G'))+int((letter2=='C' or letter2=='G'))+int((letter3=='C' or letter3=='G'))+(letter4=='C' or letter4=='G')+int((letter5=='C' or letter5=='G'))+(letter6=='C' or letter6=='G')+(letter7=='C' or letter7=='G'))/7.0 
-                                            if 0.7 <= gcRatio and 0.8 >= gcRatio:
-                                                stem = letter1 + letter2 + letter3 + letter4 + letter5 + letter6 + letter7
-                                                arrayOfStems.append(stem)
-                                    else: # 6 bp stem
-                                        letter7 = ""
-                                        gcRatio = (int((letter1=='C' or letter1=='G'))+int((letter2=='C' or letter2=='G'))+int((letter3=='C' or letter3=='G'))+(letter4=='C' or letter4=='G')+int((letter5=='C' or letter5=='G'))+(letter6=='C' or letter6=='G'))/6.0    
-                                        if 0.65 <= gcRatio and 0.85 >= gcRatio: # I loosened requirements here because otherwise a 6 bp stem would not be possible.
-                                            stem = letter1 + letter2 + letter3 + letter4 + letter5 + letter6 + letter7
-                                            arrayOfStems.append(stem)
-                            else: # 5 bp stem
-                                letter6 = ""
-                                letter7 = ""
-                                gcRatio = (int((letter1=='C' or letter1=='G'))+int((letter2=='C' or letter2=='G'))+int((letter3=='C' or letter3=='G'))+(letter4=='C' or letter4=='G')+int((letter5=='C' or letter5=='G')))/5.0     
-                                if 0.7 <= gcRatio and 0.8 >= gcRatio:
-                                    stem = letter1 + letter2 + letter3 + letter4 + letter5 + letter6 + letter7
-                                    arrayOfStems.append(stem)
-                    else: # 4 bp stem
-                        letter5 = ""
-                        letter6 = ""
-                        letter7 = ""
-                        gcRatio = (int((letter1=='C' or letter1=='G'))+int((letter2=='C' or letter2=='G'))+int((letter3=='C' or letter3=='G'))+(letter4=='C' or letter4=='G')+int((letter5=='C' or letter5=='G')))/4.0 # Determines fraction of nucleotides that are either g's or c's.
-                        if 0.7 <= gcRatio and 0.8 >= gcRatio:
-                            stem = letter1 + letter2 + letter3 + letter4 + letter5 + letter6 + letter7
-                            arrayOfStems.append(stem)
-    return arrayOfStems
+    stemList = []
+    bases = ['A','T','C','G']
+    
+    # Iterates all permutations of the bases within the provided stem length
+    for stem in product(bases, repeat=stemLength):
+        gcRatio = (stem.count('C') + stem.count('G')) / stemLength # Ratio of guanine and cytosine bases in stem
+
+        if 0.8 >= gcRatio >= 0.7 or (stemLength == 6 and 0.85 >= gcRatio >= 0.65):
+            stemString = ''.join(stem)
+            stemList.append(stemString)
+
+    return stemList
 
 # Returns array of the complements for all the stems. Credit to stack overflow.
 def createAntiStems(arrayOfStems):
@@ -414,7 +391,7 @@ def getHybridizations(foldOutput,beaconIndex):
 # APPARENTLY, THIS FUNCTION DOES NOT FUNCTION. WHICH IS NOT GOOD. 
 def deDupe(sequences):
     deDuped = []
-    for i in range(0, len(sequences)-1): 
+    for i in range(0, len(sequences)): 
         justSequences = [mfoldSequence.sequence for mfoldSequence in deDuped]
         if sequences[i].sequence not in justSequences: 
             deDuped.append(sequences[i]) 
